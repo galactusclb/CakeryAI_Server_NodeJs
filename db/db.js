@@ -271,6 +271,39 @@ db.changeReportsActiveSettings = (user, data) => {
 	});
 };
 
+// *************** ingredients db functions **********//
+
+db.addIngredientsDetails = (user, data) => {
+	const now = moment().format();
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"INSERT INTO product_ingredients(_userId,ingredients_details,timestamp) VALUES(?,?,?)",
+			[user._uid, JSON.stringify(data.ingredients), now],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
+db.getIngredientsDetails = (user) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"SELECT * FROM product_ingredients WHERE _userId=?",
+			[user._uid],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
 //**************** extra function **************//
 function paddy(num, padlen, padchar) {
 	var pad_char = typeof padchar !== "undefined" ? padchar : "0";

@@ -237,4 +237,35 @@ router.put("/changereportsactivesettings", verifyToken(), async (req, res) => {
 	}
 });
 
+//ingredients details api functions
+router.post("/addingredientsdetails", verifyToken(), async (req, res) => {
+	// console.log(req.loggedUserDetails);
+
+	try {
+		const result = db.addIngredientsDetails(req.loggedUserDetails, req.body);
+
+		res.status(200).json({ message: "Ingredient details added successfully" });
+	} catch (error) {
+		res.status(500).json({ message: "internel server error" });
+	}
+});
+
+router.get("/getingredientsdetails", verifyToken(), async (req, res) => {
+	// console.log(req.loggedUserDetails);
+	try {
+		const result = await db.getIngredientsDetails(req.loggedUserDetails);
+
+		if (result?.[0]?.ingredients_details) {
+			result[0].ingredients_details = JSON.parse(
+				result?.[0]?.ingredients_details
+			);
+
+			res.status(200).json(result);
+		}
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ message: "internel server errorss" });
+	}
+});
+
 module.exports = router;

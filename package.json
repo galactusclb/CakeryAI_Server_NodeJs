@@ -11,6 +11,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@tensorflow/tfjs": "^2.8.6",
+    "@tensorflow/tfjs-node": "^2.8.6",
     "aws-sdk": "^2.843.0",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.19.0",

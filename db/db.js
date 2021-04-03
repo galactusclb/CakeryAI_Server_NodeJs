@@ -34,6 +34,23 @@ db.findOneUser = (data) => {
 	});
 };
 
+db.findUserById = (user) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"SELECT userId,userName,email FROM users WHERE userId=? LIMIT 1",
+			[user._uid],
+			(err, results) => {
+				if (err) {
+					console.log(err);
+					reject(err);
+				}
+
+				resolve(results);
+			}
+		);
+	});
+};
+
 db.registerUser = (data, hashpassword, token, expireToken) => {
 	const timestamp = moment().format();
 
@@ -198,7 +215,7 @@ db.uploadReport = (file, user, body) => {
 				body.headers,
 				body.selectedColumn,
 				"Not available",
-				0,
+				null,
 				"Initial",
 				moment().format(),
 			],
@@ -271,14 +288,31 @@ db.changeReportsActiveSettings = (user, data) => {
 	});
 };
 
+db.trainModel = (user, data) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"UPDATE uploadedreport SET status=? WHERE _id=? AND userId=?",
+			["training", data._id, user._uid],
+			(err, results) => {
+				if (err) {
+					console.log(err);
+					reject(err);
+				}
+
+				resolve(results);
+			}
+		);
+	});
+};
+
 // *************** ingredients db functions **********//
 
 db.addIngredientsDetails = (user, data) => {
 	const now = moment().format();
 	return new Promise((resolve, reject) => {
 		pool.query(
-			"INSERT INTO product_ingredients(_userId,ingredients_details,timestamp) VALUES(?,?,?)",
-			[user._uid, JSON.stringify(data.ingredients), now],
+			"INSERT INTO product_ingredients(_userId,ingredients_details,measure_type,timestamp) VALUES(?,?,?,?)",
+			[user._uid, data["ingredientName"], data["measureType"], now],
 			(err, results) => {
 				if (err) {
 					reject(err);
@@ -294,6 +328,21 @@ db.getIngredientsDetails = (user) => {
 		pool.query(
 			"SELECT * FROM product_ingredients WHERE _userId=?",
 			[user._uid],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
+db.getActivatedModelDetails = (user) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"SELECT _id,status FROM uploadedreport WHERE activate=? AND userId=?",
+			[1, user._uid],
 			(err, results) => {
 				if (err) {
 					reject(err);

@@ -1,5 +1,6 @@
 const express = require("express");
 const moment = require("moment");
+const https = require("http");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
@@ -10,6 +11,7 @@ require("dotenv").config();
 
 const db = require("../db/db");
 const awsMethods = require("../services/file-upload");
+const template_notifyTrainingComplete = require("./email_notifyTrainingComplete");
 
 const { verifyToken } = require("./basicAuth");
 
@@ -171,10 +173,6 @@ router.post("/confirmemail", async (req, res, next) => {
 	}
 });
 
-router.get("/xd", verifyToken(), async (req, res) => {
-	res.status(200).json({ message: "xd bn" });
-});
-
 //upload training reports
 router.post("/upload-report", verifyToken(), async (req, res) => {
 	// console.log(req.loggedUserDetails);
@@ -237,10 +235,44 @@ router.put("/changereportsactivesettings", verifyToken(), async (req, res) => {
 	}
 });
 
+router.put("/trainmodel", verifyToken(), async (req, res) => {
+	try {
+		const results = await db.trainModel(req.loggedUserDetails, req.body);
+
+		// .then((result) => {
+		// 	if (result) {
+		// 		//get user email
+		// 		const user = await db.findUserById(req.loggedUserDetails);
+
+		// 		//send notification
+		// 		transpoter.sendMail({
+		// 			to: user[0].email,
+		// 			from: fromEmail,
+		// 			subject: "[Cakery.Ai] Your model has been trained successfully.",
+		// 			html: template_notifyTrainingComplete.notifyTrainingComplete(
+		// 				user[0].userName,
+		// 				frontEndUrl
+		// 			),
+		// 		});
+
+		res.status(200).json({
+			message: "Your model is training now.",
+		});
+
+		// 	}
+		// }).catch((err) => {
+		// 	console.log(err);
+		// 	res.status(409).send("Something wrong!");
+		// });
+	} catch (error) {
+		res.status(400).json({ message: "server error" });
+	}
+});
+
 //ingredients details api functions
 router.post("/addingredientsdetails", verifyToken(), async (req, res) => {
 	// console.log(req.loggedUserDetails);
-
+	console.log(req.body);
 	try {
 		const result = db.addIngredientsDetails(req.loggedUserDetails, req.body);
 
@@ -255,13 +287,106 @@ router.get("/getingredientsdetails", verifyToken(), async (req, res) => {
 	try {
 		const result = await db.getIngredientsDetails(req.loggedUserDetails);
 
+		// if (result?.[0]?.ingredients_details) {
+		// 	result[0].ingredients_details = JSON.parse(
+		// 		result?.[0]?.ingredients_details
+		// 	);
+
+		res.status(200).json(result);
+		// }
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ message: "internel server errorss" });
+	}
+});
+
+router.get("/getproductsdetails", verifyToken(), async (req, res) => {
+	try {
+		const result = await db.getIngredientsDetails(req.loggedUserDetails);
+
 		if (result?.[0]?.ingredients_details) {
 			result[0].ingredients_details = JSON.parse(
 				result?.[0]?.ingredients_details
 			);
 
-			res.status(200).json(result);
+			// console.log(result[0]);
+			res.status(200).json(result[0]["ingredients_details"]);
 		}
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ message: "internel server errorss" });
+	}
+});
+
+router.get(
+	"/getproductdetailsbyproduct/:id",
+	verifyToken(),
+	async (req, res) => {
+		console.log(req.params);
+		try {
+			const result = await db.getIngredientsDetails(req.loggedUserDetails);
+			if (result?.[0]?.ingredients_details) {
+				result[0].ingredients_details = JSON.parse(
+					result?.[0]?.ingredients_details
+				);
+				// console.log(result[0]);
+
+				const header = result[0]["ingredients_details"]["header"];
+				const details = result[0]["ingredients_details"]["data"][req.params.id];
+
+				const detailsWithHeader = {
+					header: header,
+					details: details,
+				};
+
+				// console.log(detailsWithHeader);
+				res.status(200).json(detailsWithHeader);
+			}
+		} catch (error) {
+			console.log(error);
+			res.status(500).json({ message: "internel server errorss" });
+		}
+	}
+);
+
+router.get("/getactivatedmodeldetails", verifyToken(), async (req, res) => {
+	// console.log(req.loggedUserDetails);
+	try {
+		const result = await db.getActivatedModelDetails(req.loggedUserDetails);
+		res.status(200).json(result);
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ message: "internel server errorss" });
+	}
+});
+
+router.get("/getPredictonsByMonth", async (req, res) => {
+	// console.log(req.loggedUserDetails);
+	try {
+		// const result = await db.getPredictonsByMonth(
+		// 	req.loggedUserDetails,
+		// 	req.query
+		// );
+
+		https
+			.get("http://127.0.0.1:8000/app/getPredict", (resp) => {
+				let data = "";
+
+				// A chunk of data has been received.
+				resp.on("data", (chunk) => {
+					data += chunk;
+				});
+
+				// The whole response has been received. Print out the result.
+				resp.on("end", () => {
+					console.log(data);
+					res.status(200).json(data);
+				});
+			})
+			.on("error", (err) => {
+				console.log("Error: " + err.message);
+				res.status(500).json({ message: "internel server errors" });
+			});
 	} catch (error) {
 		console.log(error);
 		res.status(500).json({ message: "internel server errorss" });

@@ -1,6 +1,8 @@
 const express = require("express");
 const moment = require("moment");
-const https = require("http");
+const http = require("http");
+const https = require("https");
+const url = require("url");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
@@ -368,24 +370,106 @@ router.get("/getPredictonsByMonth", async (req, res) => {
 		// 	req.query
 		// );
 
-		https
-			.get("http://127.0.0.1:8000/app/getPredict", (resp) => {
+		// const requestUrl = url.parse(url.format({
+		// 	protocol: 'http',
+		// 	hostname: host,
+		// 	pathname: path,
+		// 	port: port,
+		// 	query: queryString
+		// }));
+
+		const requestUrl = url.parse(
+			url.format({
+				protocol: "http",
+				hostname: "localhost",
+				port: 8000,
+				pathname: "/app/getPredictionEduraca",
+				query: {
+					q: 4,
+				},
+			})
+		);
+		console.log(url.format(requestUrl));
+		const req = http
+			.get(url.format(requestUrl), (resp) => {
 				let data = "";
 
 				// A chunk of data has been received.
 				resp.on("data", (chunk) => {
+					console.log("GET chunk: " + chunk);
 					data += chunk;
 				});
 
 				// The whole response has been received. Print out the result.
 				resp.on("end", () => {
-					console.log(data);
-					res.status(200).json(data);
+					res.status(200).json(JSON.parse(data));
 				});
 			})
 			.on("error", (err) => {
-				console.log("Error: " + err.message);
-				res.status(500).json({ message: "internel server errors" });
+				console.log("GET Error: " + err);
+			});
+
+		// https
+		// 	.get("http://127.0.0.1:8000/app/getPredict", (resp) => {
+		// 		let data = "";
+
+		// 		// A chunk of data has been received.
+		// 		resp.on("data", (chunk) => {
+		// 			data += chunk;
+		// 		});
+
+		// 		// The whole response has been received. Print out the result.
+		// 		resp.on("end", () => {
+		// 			console.log(data);
+		// 			res.status(200).json(data);
+		// 		});
+		// 	})
+		// 	.on("error", (err) => {
+		// 		console.log("Error: " + err.message);
+		// 		res.status(500).json({ message: "internel server errors" });
+		// 	});
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ message: "internel server errorss" });
+	}
+});
+
+router.get("/getSalesReport", async (req, res) => {
+	try {
+		// const requestUrl = url.parse(
+		// 	url.format({
+		// 		protocol: "http",
+		// 		hostname: "localhost",
+		// 		port: 8000,
+		// 		pathname: "/app/getPredictionEduraca",
+		// 		query: {
+		// 			q: 4,
+		// 		},
+		// 	})
+		// );
+		// console.log(url.format(requestUrl));
+
+		const req = https
+			.get(
+				"https://cakery-ai-s3.s3-ap-southeast-1.amazonaws.com/CakeMonthlySaleReport.csv",
+				(resp) => {
+					let data = "";
+
+					// A chunk of data has been received.
+					resp.on("data", (chunk) => {
+						// console.log("GET chunk: " + chunk);
+						data += chunk;
+					});
+
+					// The whole response has been received. Print out the result.
+					resp.on("end", () => {
+						// console.log(data);
+						res.status(200).json(data);
+					});
+				}
+			)
+			.on("error", (err) => {
+				console.log("GET Error: " + err);
 			});
 	} catch (error) {
 		console.log(error);

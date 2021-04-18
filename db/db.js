@@ -338,6 +338,93 @@ db.getIngredientsDetails = (user) => {
 	});
 };
 
+// *************** Products db functions **********//
+
+db.addproductsdetails = (user, data) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"INSERT INTO products(userId,productName,Ingredient,timestamp) VALUES(?,?,?,?)",
+			[
+				user._uid,
+				data["productName"],
+				JSON.stringify(data["ingredient"]),
+				moment().format(),
+			],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
+db.updateproduct = (user, data) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"UPDATE products SET productName=?, Ingredient=? WHERE _id=? AND userId=?",
+			[
+				data["productName"],
+				JSON.stringify(data["ingredient"]),
+				data["_id"],
+				user._uid,
+			],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
+db.deleteproduct = (user, productId) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"DELETE FROM products WHERE _id=? AND userId=?",
+			[productId, user._uid],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
+db.getproductsdetails = (user) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"SELECT * FROM products WHERE userId=?",
+			[user._uid],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
+db.getproductdetailsbyproduct = (user, productId) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"SELECT * FROM products WHERE userId=? AND _id=?",
+			[user._uid, productId],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
 db.getActivatedModelDetails = (user) => {
 	return new Promise((resolve, reject) => {
 		pool.query(

@@ -302,18 +302,23 @@ router.get("/getingredientsdetails", verifyToken(), async (req, res) => {
 	}
 });
 
+// *************** Products Routes functions **********//
+
+router.post("/addproductsdetails", verifyToken(), async (req, res) => {
+	try {
+		const result = await db.addproductsdetails(req.loggedUserDetails, req.body);
+		res.status(200).json(result);
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ message: "internel server errorss" });
+	}
+});
+
 router.get("/getproductsdetails", verifyToken(), async (req, res) => {
 	try {
-		const result = await db.getIngredientsDetails(req.loggedUserDetails);
+		const result = await db.getproductsdetails(req.loggedUserDetails);
 
-		if (result?.[0]?.ingredients_details) {
-			result[0].ingredients_details = JSON.parse(
-				result?.[0]?.ingredients_details
-			);
-
-			// console.log(result[0]);
-			res.status(200).json(result[0]["ingredients_details"]);
-		}
+		res.status(200).json(result);
 	} catch (error) {
 		console.log(error);
 		res.status(500).json({ message: "internel server errorss" });
@@ -324,32 +329,44 @@ router.get(
 	"/getproductdetailsbyproduct/:id",
 	verifyToken(),
 	async (req, res) => {
-		console.log(req.params);
 		try {
-			const result = await db.getIngredientsDetails(req.loggedUserDetails);
-			if (result?.[0]?.ingredients_details) {
-				result[0].ingredients_details = JSON.parse(
-					result?.[0]?.ingredients_details
-				);
-				// console.log(result[0]);
-
-				const header = result[0]["ingredients_details"]["header"];
-				const details = result[0]["ingredients_details"]["data"][req.params.id];
-
-				const detailsWithHeader = {
-					header: header,
-					details: details,
-				};
-
-				// console.log(detailsWithHeader);
-				res.status(200).json(detailsWithHeader);
-			}
+			const result = await db.getproductdetailsbyproduct(
+				req.loggedUserDetails,
+				req.params.id
+			);
+			res.status(200).json(result);
 		} catch (error) {
 			console.log(error);
 			res.status(500).json({ message: "internel server errorss" });
 		}
 	}
 );
+
+router.post("/updateproduct", verifyToken(), async (req, res) => {
+	try {
+		await db.updateproduct(req.loggedUserDetails, req.body);
+
+		res
+			.status(200)
+			.json({ message: "The product has been successfully updated" });
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ message: "internel server errorss" });
+	}
+});
+
+router.get("/deleteproduct/:productId", verifyToken(), async (req, res) => {
+	try {
+		const result = await db.deleteproduct(
+			req.loggedUserDetails,
+			req.params["productId"]
+		);
+		res.status(200).json(result);
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ message: "internel server errorss" });
+	}
+});
 
 router.get("/getactivatedmodeldetails", verifyToken(), async (req, res) => {
 	// console.log(req.loggedUserDetails);
@@ -389,7 +406,7 @@ router.get("/getPredictonsByMonth", async (req, res) => {
 				},
 			})
 		);
-		console.log(url.format(requestUrl));
+		// console.log(url.format(requestUrl));
 		const req = http
 			.get(url.format(requestUrl), (resp) => {
 				let data = "";
@@ -406,7 +423,8 @@ router.get("/getPredictonsByMonth", async (req, res) => {
 				});
 			})
 			.on("error", (err) => {
-				console.log("GET Error: " + err);
+				console.log("GET Error 1: " + err);
+				res.status(500).json({ message: "internel server errorss" });
 			});
 
 		// https
@@ -470,6 +488,7 @@ router.get("/getSalesReport", async (req, res) => {
 			)
 			.on("error", (err) => {
 				console.log("GET Error: " + err);
+				res.status(500).json({ message: "internel server error : aws" });
 			});
 	} catch (error) {
 		console.log(error);

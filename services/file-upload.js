@@ -35,16 +35,20 @@ awsMethods.upload = multer({
 		bucket: BUCKET_NAME,
 		acl: "public-read",
 		metadata: function (req, file, cb) {
-			cb(null, { fieldName: file.fieldname });
+			// console.log("xxxxxxxxxxx", file);
+			cb(null, { fieldName: file.originalname });
 		},
 		key: function (req, file, cb) {
-			cb(null, Date.now().toString());
+			// to examine file type
+			const fileType = getFileType(file.originalname);
+			console.log(fileType);
+			cb(null, `${Date.now().toString()}.${fileType}`);
 		},
 	}),
 });
 
 awsMethods.s3delete = function (params) {
-	console.log(params);
+	// console.log(params);
 
 	const gg = {
 		Bucket: BUCKET_NAME,
@@ -65,4 +69,10 @@ awsMethods.s3delete = function (params) {
 		});
 	});
 };
+
+// extra functions
+function getFileType(fileName) {
+	return fileName.split(".").pop();
+}
+
 module.exports = awsMethods;

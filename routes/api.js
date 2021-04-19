@@ -325,6 +325,17 @@ router.get("/getproductsdetails", verifyToken(), async (req, res) => {
 	}
 });
 
+router.get("/getproductsname", verifyToken(), async (req, res) => {
+	try {
+		const result = await db.getproductsName(req.loggedUserDetails);
+
+		res.status(200).json(result);
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ message: "internel server errorss" });
+	}
+});
+
 router.get(
 	"/getproductdetailsbyproduct/:id",
 	verifyToken(),

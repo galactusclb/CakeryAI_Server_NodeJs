@@ -203,7 +203,7 @@ db.confirmEmail = (token) => {
 };
 
 db.uploadReport = (file, user, body) => {
-	console.log(file);
+	// console.log(file);
 	return new Promise((resolve, reject) => {
 		pool.query(
 			"INSERT INTO uploadedReport(userId,uploadedFile,fileURL,file_key,headers,selectedColumn,accuracy,activate,status,timestamp) VALUES(?,?,?,?,?,?,?,?,?,?)",
@@ -399,6 +399,21 @@ db.getproductsdetails = (user) => {
 	return new Promise((resolve, reject) => {
 		pool.query(
 			"SELECT * FROM products WHERE userId=?",
+			[user._uid],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
+db.getproductsName = (user) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"SELECT _id,productName FROM products WHERE userId=?",
 			[user._uid],
 			(err, results) => {
 				if (err) {

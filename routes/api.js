@@ -390,72 +390,101 @@ router.get("/getactivatedmodeldetails", verifyToken(), async (req, res) => {
 	}
 });
 
-router.get("/getPredictonsByMonth", async (req, res) => {
+router.get("/getPredictonsByMonth", verifyToken(), async (req, res) => {
 	// console.log(req.loggedUserDetails);
 	try {
-		// const result = await db.getPredictonsByMonth(
-		// 	req.loggedUserDetails,
-		// 	req.query
-		// );
-
-		// const requestUrl = url.parse(url.format({
-		// 	protocol: 'http',
-		// 	hostname: host,
-		// 	pathname: path,
-		// 	port: port,
-		// 	query: queryString
-		// }));
-
-		const requestUrl = url.parse(
-			url.format({
-				protocol: "http",
-				hostname: "localhost",
-				port: 8000,
-				pathname: "/app/getPredictionEduraca",
-				query: {
-					q: 4,
-				},
-			})
+		const result = await db.getReportDetailsForPrediction(
+			req.loggedUserDetails
 		);
-		// console.log(url.format(requestUrl));
-		const req = http
-			.get(url.format(requestUrl), (resp) => {
-				let data = "";
 
-				// A chunk of data has been received.
-				resp.on("data", (chunk) => {
-					console.log("GET chunk: " + chunk);
-					data += chunk;
-				});
-
-				// The whole response has been received. Print out the result.
-				resp.on("end", () => {
-					res.status(200).json(JSON.parse(data));
-				});
-			})
-			.on("error", (err) => {
-				console.log("GET Error 1: " + err);
-				res.status(500).json({ message: "internel server errorss" });
+		const headers = JSON.parse(result[0]?.["headers"]);
+		if (headers.length) {
+			headers.forEach((element) => {
+				if (element["mappedProductID"] == req.query["productID"]) {
+					result[0]["needPrediction"] = element["name"];
+					// console.log(result[0]["needPrediction"]);
+				}
 			});
+		}
 
-		// https
-		// 	.get("http://127.0.0.1:8000/app/getPredict", (resp) => {
+		console.log(result[0]["needPrediction"]);
+		if (!result[0]["needPrediction"]) {
+			res.status(400).json({
+				message:
+					"This product has not been mapped with your activated sales report",
+			});
+		} else {
+			console.log(result[0]);
+			if (result[0]["fileURL"] && result[0]["needPrediction"]) {
+				result[0]["monthsCount"] = 4;
+
+				console.log(result);
+				const requestUrl = url.parse(
+					url.format({
+						protocol: "http",
+						hostname: "localhost",
+						port: 8000,
+						pathname: "/app/getPredictionEduraca",
+						query: result[0],
+					})
+				);
+				// console.log(url.format(requestUrl));
+				const edu = http
+					.get(url.format(requestUrl), (resp) => {
+						let data = "";
+
+						// A chunk of data has been received.
+						resp.on("data", (chunk) => {
+							console.log("GET chunk: " + chunk);
+							data += chunk;
+						});
+
+						// The whole response has been received. Print out the result.
+						resp.on("end", () => {
+							res.status(200).json(JSON.parse(data));
+						});
+					})
+					.on("error", (err) => {
+						console.log("GET Error 1: " + err);
+						res.status(500).json({ message: "internel server errorss" });
+					});
+			} else {
+				res.status(404).json({
+					message: "File url missing or the mapped section is not correct.",
+				});
+			}
+		}
+
+		// const requestUrl = url.parse(
+		// 	url.format({
+		// 		protocol: "http",
+		// 		hostname: "localhost",
+		// 		port: 8000,
+		// 		pathname: "/app/getPredictionEduraca",
+		// 		query: {
+		// 			q: 4,
+		// 		},
+		// 	})
+		// );
+		// // console.log(url.format(requestUrl));
+		// const edu = http
+		// 	.get(url.format(requestUrl), (resp) => {
 		// 		let data = "";
 
 		// 		// A chunk of data has been received.
 		// 		resp.on("data", (chunk) => {
+		// 			console.log("GET chunk: " + chunk);
 		// 			data += chunk;
 		// 		});
 
 		// 		// The whole response has been received. Print out the result.
 		// 		resp.on("end", () => {
-		// 			console.log(data);
-		// 			res.status(200).json(data);
+		// 			res.status(200).json(JSON.parse(data));
 		// 		});
 		// 	})
 		// 	.on("error", (err) => {
-		// 		console.log("Error: " + err.message);
-		// 		res.status(500).json({ message: "internel server errors" });
+		// 		console.log("GET Error 1: " + err);
+		// 		res.status(500).json({ message: "internel server errorss" });
 		// 	});
 	} catch (error) {
 		console.log(error);

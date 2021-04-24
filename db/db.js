@@ -203,7 +203,7 @@ db.confirmEmail = (token) => {
 };
 
 db.uploadReport = (file, user, body) => {
-	// console.log(file);
+	console.log(body);
 	return new Promise((resolve, reject) => {
 		pool.query(
 			"INSERT INTO uploadedReport(userId,uploadedFile,fileURL,file_key,headers,selectedColumn,accuracy,activate,status,timestamp) VALUES(?,?,?,?,?,?,?,?,?,?)",
@@ -232,8 +232,8 @@ db.uploadReport = (file, user, body) => {
 
 db.getUploadedReportsByUserId = (data) => {
 	return new Promise((resolve, reject) => {
-		var gg = pool.query(
-			"SELECT * FROM uploadedreport WHERE userId=?",
+		pool.query(
+			"SELECT * FROM uploadedreport WHERE userId=? ORDER BY timestamp ",
 			[data._uid],
 			(err, results) => {
 				if (err) {
@@ -445,6 +445,23 @@ db.getActivatedModelDetails = (user) => {
 		pool.query(
 			"SELECT _id,status FROM uploadedreport WHERE activate=? AND userId=?",
 			[1, user._uid],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
+// *************** predict django api data db function ********* //
+
+db.getReportDetailsForPrediction = (user) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"SELECT fileURL,headers FROM uploadedreport WHERE userId=? AND activate=?",
+			[user._uid, 1],
 			(err, results) => {
 				if (err) {
 					reject(err);

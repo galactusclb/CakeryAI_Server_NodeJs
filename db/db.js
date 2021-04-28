@@ -16,9 +16,15 @@ let db = {};
 
 db.findOneUser = (data) => {
 	return new Promise((resolve, reject) => {
+		where = "";
+		params = [data["userName"]];
+
+		if (data["email"]) {
+			where = "OR email=?";
+		}
 		pool.query(
-			"SELECT userId,userName,email FROM users WHERE userName=? OR email=?",
-			[data["userName"], data["email"]],
+			"SELECT userId,userName,email FROM users WHERE userName=?" + where,
+			params,
 			(err, results) => {
 				if (err) {
 					return reject(err);
@@ -29,6 +35,21 @@ db.findOneUser = (data) => {
 						return resolve(false);
 					}
 				}
+			}
+		);
+	});
+};
+
+db.findUserName = (data) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"SELECT email FROM users WHERE userName=? ",
+			[data["userName"]],
+			(err, results) => {
+				if (err) {
+					return reject(err);
+				}
+				resolve(results);
 			}
 		);
 	});
@@ -201,6 +222,112 @@ db.confirmEmail = (token) => {
 		);
 	});
 };
+
+db.forgetPassword = (details) => {
+	return new Promise((resolve, reject) => {
+		var sql = "UPDATE users SET token=?,expireToken=? WHERE userName = ?";
+		params = [details["token"], details["expireToken"], details["userName"]];
+
+		var gg = pool.query(sql, params, (err, results) => {
+			if (err) {
+				reject(err);
+			}
+			// console.log(gg.sql)
+			resolve(results);
+		});
+	});
+};
+
+db.resetPassword = (details) => {
+	return new Promise((resolve, reject) => {
+		// const now = moment().format();
+		const now = Date.now();
+
+		pool.query(
+			"SELECT _id,userId FROM users WHERE uName = ? AND token=? AND expireToken > ? LIMIT 1",
+			[details["user"], details["token"], now],
+			(err, results) => {
+				if (err) {
+					console.log(err);
+					return reject({ status: 500, message: "Server Error" });
+				}
+
+				if (results.length == 0) {
+					return reject({ status: 422, message: "Token is not valid." });
+				} else {
+					const inserted_id = results[0].userId;
+
+					pool.query(
+						"UPDATE users SET password=?,token=?,tokenExp=? WHERE userId = ?",
+						[details["hashpassword"], null, null, inserted_id],
+						(err, results) => {
+							if (err) {
+								console.log(err);
+								reject({ status: 500, message: "Server Error" });
+							}
+							resolve(results);
+						}
+					);
+				}
+			}
+		);
+	});
+};
+
+db.getUserDetails = (user) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"SELECT userName,email,fname,lname,phoneNumber,companyName FROM users WHERE userId=? LIMIT 1",
+			[user._uid],
+			(err, results) => {
+				if (err) {
+					console.log(err);
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
+db.updateUserName = (user, data) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"UPDATE users SET userName=? WHERE userId=?",
+			[data["userName"], user._uid],
+			(err, results) => {
+				if (err) {
+					console.log(err);
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
+db.updateUserPersonalDetails = (user, data) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"UPDATE users SET fname=?,lname=?,phoneNumber=?,companyName=? WHERE userId=?",
+			[
+				data["fname"],
+				data["lname"],
+				data["phoneNumber"],
+				data["companyName"],
+				user._uid,
+			],
+			(err, results) => {
+				if (err) {
+					console.log(err);
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+// end of user account api dp
 
 db.uploadReport = (file, user, body) => {
 	console.log(body);

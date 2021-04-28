@@ -7,13 +7,14 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+const { check, validationResult } = require("express-validator");
 const sendgridTranspoter = require("nodemailer-sendgrid-transport");
 
 require("dotenv").config();
 
 const db = require("../db/db");
 const awsMethods = require("../services/file-upload");
-const template_notifyTrainingComplete = require("./email_notifyTrainingComplete");
+const template_reset_password = require("./tempForgetPasswordEmail");
 
 const { verifyToken } = require("./basicAuth");
 
@@ -24,6 +25,8 @@ const router = express.Router();
 const secretKey = process.env.PROD_SECRET_KEY;
 const sendGridAPiKey = process.env.SendGridAPiKey;
 const fromEmail = process.env.FromEmail;
+
+const frontEndUrl = process.env.FrontEndUrl;
 
 const transpoter = nodemailer.createTransport(
 	sendgridTranspoter({
@@ -174,6 +177,186 @@ router.post("/confirmemail", async (req, res, next) => {
 		res.sendStatus(500);
 	}
 });
+
+router.post(
+	"/forgetpassword",
+	[
+		check("userName")
+			.not()
+			.isEmpty()
+			.withMessage("Username is empty")
+			.trim()
+			.escape(),
+	],
+	async (req, res, next) => {
+		const errors = validationResult(req);
+
+		if (!errors.isEmpty()) {
+			console.log(errors);
+			res.status(422).send(errors);
+		} else {
+			let savedUser = await db.findUserName(req.body);
+
+			if (!savedUser) {
+				// for wrong users
+				return res.status(422).json("No user account found for that username.");
+			} else {
+				data = req.body;
+
+				try {
+					crypto.randomBytes(32, async (err, buffer) => {
+						if (err) {
+							console.log(err);
+						}
+						const token = buffer.toString("hex");
+						const expireToken = Date.now() + 5 * 60 * 60 * 1000;
+
+						data.token = token;
+						data.expireToken = expireToken;
+
+						let result = await db
+							.forgetPassword(data)
+							.then((result) => {
+								if (result) {
+									transpoter.sendMail(
+										{
+											// to: req.body.email,
+											to: savedUser[0].email,
+											from: fromEmail,
+											subject: "[CakeryAi.com] Reset your password",
+											html: template_reset_password.resetPassword(
+												req.body["userName"],
+												frontEndUrl,
+												token
+											),
+										},
+										(error, response) => {
+											if (error) {
+												console.log(error);
+											}
+											res.status(200).json({
+												message:
+													"If you are an admin,you will get a mail to the Admin's email.",
+											});
+										}
+									);
+								}
+							})
+							.catch((err) => {
+								console.log(err);
+								res.status(409).send("Something wrong!");
+							});
+					});
+				} catch (error) {
+					console.log(error);
+					res.status(409).send("Something wrong!");
+				}
+			}
+		}
+	}
+);
+
+router.post(
+	"/resetpassword",
+	[
+		check("newPassword")
+			.exists()
+			.withMessage("Password should not be empty")
+			.matches(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9]).{8,13}$/, "i")
+			.withMessage(
+				"Please enter a password at least 8 to 13 characters and contain at least one uppercase, at least one lowercase character, and one special character."
+			),
+		check("confirmPassword", "Passwords do not match").custom(
+			(value, { req }) => value === req.body.newPassword
+		),
+	],
+	async (req, res, next) => {
+		const errors = validationResult(req);
+
+		if (!errors.isEmpty()) {
+			console.log(errors);
+			res.status(422).send(errors);
+		} else {
+			data = req.body;
+
+			if (data.newPassword !== data.confirmPassword) {
+				res
+					.status(422)
+					.json({ error: "new password and confirm password is not same" });
+			} else {
+				const saltRound = 10;
+				const hashpassword = await bcrypt.hash(data.newPassword, saltRound);
+
+				data.hashpassword = hashpassword;
+
+				try {
+					const results = await db.resetPassword(data);
+					res.status(200).json({
+						message: "Your password has been changed.",
+					});
+				} catch (error) {
+					console.log(error);
+					res
+						.status(error.status || 422)
+						.send(error.message || "Something wrong!");
+				}
+			}
+		}
+	}
+);
+
+router.get("/getuserdetails", verifyToken(), async (req, res) => {
+	try {
+		// const results = await db.getUploadedReportsByUserId(req.query);
+		const results = await db.getUserDetails(req.loggedUserDetails);
+		res.status(200).json(results);
+	} catch (error) {
+		res.status(400).json({ message: "server error" });
+	}
+});
+
+router.post("/checkusername", verifyToken(), async (req, res) => {
+	try {
+		let savedUser = await db.findUserName(req.body);
+
+		if (savedUser.length > 0) {
+			res
+				.status(422)
+				.json({ message: "User already exists with that username." });
+		} else {
+			res.status(200).json({ message: "This name is available" });
+		}
+	} catch (error) {
+		res.status(500).json({ message: "server error" });
+	}
+});
+
+router.post("/updateusername", verifyToken(), async (req, res) => {
+	try {
+		let savedUser = await db.findUserName(req.body);
+
+		if (savedUser.length > 0) {
+			return res.status(422).json("User already exists with that username.");
+		} else {
+			await db.updateUserName(req.loggedUserDetails, req.body);
+
+			res.status(200).json({ message: "Your username has been updated" });
+		}
+	} catch (error) {
+		res.status(500).json({ message: "server error" });
+	}
+});
+
+router.post("/updateuserpersonaldetails", verifyToken(), async (req, res) => {
+	try {
+		await db.updateUserPersonalDetails(req.loggedUserDetails, req.body);
+
+		res.status(200).json({ message: "Your personal details has been updated" });
+	} catch (error) {
+		res.status(500).json({ message: "server error" });
+	}
+});
+// end of user account api
 
 //upload training reports
 router.post("/upload-report", verifyToken(), async (req, res) => {

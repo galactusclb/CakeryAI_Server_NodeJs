@@ -524,6 +524,7 @@ db.deleteproduct = (user, productId) => {
 
 db.getproductsdetails = (user) => {
 	return new Promise((resolve, reject) => {
+		console.log("userId", user._uid);
 		pool.query(
 			"SELECT * FROM products WHERE userId=?",
 			[user._uid],
@@ -593,6 +594,64 @@ db.getReportDetailsForPrediction = (user) => {
 				if (err) {
 					reject(err);
 				}
+				resolve(results);
+			}
+		);
+	});
+};
+
+db.getAllUsersActivatedReport = () => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"SELECT us.userId,us.userName,us.email,ud._id AS salesReportId, ud.fileURL, ud.headers FROM users as us \
+			INNER JOIN uploadedreport as ud ON us.userId = ud.userId AND ud.activate = 1",
+			[],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+
+				resolve(results);
+			}
+		);
+	});
+};
+
+db.generatedMonthlyReportLog = (details) => {
+	console.log("details", details);
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"INSERT INTO generated_monthly_summary(userId,salesReportId,predicted_sales,month,timestamp) VALUES(?,?,?,?,?)",
+			[
+				details["userId"],
+				details["salesReportId"],
+				details["prediction"],
+				Date.now(),
+				Date.now(),
+			],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+
+				resolve(results);
+			}
+		);
+	});
+};
+
+// error log
+db.errorLog = (details) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"INSERT INTO errorlog(timestamp,api_route,error_status,error) VALUES(?,?,?,?)",
+			[],
+			(err, results) => {
+				if (err) {
+					console.log(err);
+					reject(err);
+				}
+
 				resolve(results);
 			}
 		);

@@ -1,11 +1,13 @@
 const express = require("express");
 const moment = require("moment");
+const asyncNpm = require("async");
 const http = require("http");
 const https = require("https");
 const url = require("url");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const csv = require("csvtojson");
 const nodemailer = require("nodemailer");
 const { check, validationResult } = require("express-validator");
 const sendgridTranspoter = require("nodemailer-sendgrid-transport");
@@ -18,7 +20,10 @@ const template_reset_password = require("./tempForgetPasswordEmail");
 const template_Monthly_Predict_Report = require("./tempMonthlyPredictReport");
 
 const { verifyToken } = require("./basicAuth");
-const { resolve } = require("dns");
+const {
+	getSalesReport,
+	getPredictionBySalesreport,
+} = require("./predictAPIFunct");
 
 const singleUpload = awsMethods.upload.single("report");
 
@@ -578,11 +583,12 @@ router.get("/getactivatedmodeldetails", verifyToken(), async (req, res) => {
 router.get("/getPredictonsByMonth", verifyToken(), async (req, res) => {
 	// console.log(req.loggedUserDetails);
 	try {
+		console.log("productID ", req.query);
 		const result = await db.getReportDetailsForPrediction(
 			req.loggedUserDetails
 		);
-
 		const headers = JSON.parse(result[0]?.["headers"]);
+
 		if (headers.length) {
 			headers.forEach((element) => {
 				if (element["mappedProductID"] == req.query["productID"]) {
@@ -601,120 +607,161 @@ router.get("/getPredictonsByMonth", verifyToken(), async (req, res) => {
 		} else {
 			console.log(result[0]);
 			if (result[0]["fileURL"] && result[0]["needPrediction"]) {
-				result[0]["monthsCount"] = 12;
+				result[0]["monthsCount"] = req.query["months"] || 1;
 
 				console.log(result);
-				const requestUrl = url.parse(
-					url.format({
-						protocol: "http",
-						hostname: "localhost",
-						port: 8000,
-						pathname: "/app/getPredictionEduraca",
-						query: result[0],
-					})
-				);
-				// console.log(url.format(requestUrl));
-				const edu = http
-					.get(url.format(requestUrl), (resp) => {
-						let data = "";
-
-						// A chunk of data has been received.
-						resp.on("data", (chunk) => {
-							console.log("GET chunk : " + chunk);
-							data += chunk;
-						});
-
-						// The whole response has been received. Print out the result.
-						resp.on("end", () => {
-							res.status(200).json(JSON.parse(data));
-						});
-					})
-					.on("error", (err) => {
-						console.log("GET Error 1: " + err);
-						res.status(500).json({ message: "internel server errorss" });
-					});
+				delete result[0].headers;
+				const predictions = await getPredictionBySalesreport(result[0]);
+				// res.status(200).json({ predictions: "d" });
+				console.log("predictions : ", predictions);
+				res.status(200).json(predictions);
 			} else {
 				res.status(404).json({
 					message: "File url missing or the mapped section is not correct.",
 				});
 			}
 		}
-
-		// const requestUrl = url.parse(
-		// 	url.format({
-		// 		protocol: "http",
-		// 		hostname: "localhost",
-		// 		port: 8000,
-		// 		pathname: "/app/getPredictionEduraca",
-		// 		query: {
-		// 			q: 4,
-		// 		},
-		// 	})
-		// );
-		// // console.log(url.format(requestUrl));
-		// const edu = http
-		// 	.get(url.format(requestUrl), (resp) => {
-		// 		let data = "";
-
-		// 		// A chunk of data has been received.
-		// 		resp.on("data", (chunk) => {
-		// 			console.log("GET chunk: " + chunk);
-		// 			data += chunk;
-		// 		});
-
-		// 		// The whole response has been received. Print out the result.
-		// 		resp.on("end", () => {
-		// 			res.status(200).json(JSON.parse(data));
-		// 		});
-		// 	})
-		// 	.on("error", (err) => {
-		// 		console.log("GET Error 1: " + err);
-		// 		res.status(500).json({ message: "internel server errorss" });
-		// 	});
 	} catch (error) {
 		console.log(error);
 		res.status(500).json({ message: "internel server errorss" });
 	}
 });
 
-router.get("/getSalesReport", async (req, res) => {
+router.get("/getSalesReport", verifyToken(), async (req, res) => {
 	try {
-		// const requestUrl = url.parse(
-		// 	url.format({
-		// 		protocol: "http",
-		// 		hostname: "localhost",
-		// 		port: 8000,
-		// 		pathname: "/app/getPredictionEduraca",
-		// 		query: {
-		// 			q: 4,
-		// 		},
-		// 	})
-		// );
-		// console.log(url.format(requestUrl));
+		const results = await db.getReportDetailsForPrediction(
+			req.loggedUserDetails
+		);
 
-		const req = https
-			.get(
-				"https://cakery-ai-s3.s3-ap-southeast-1.amazonaws.com/CakeMonthlySaleReport.csv",
-				(resp) => {
-					let data = "";
+		if (results.length == 0 || !results[0]?.["fileURL"]) {
+			res.status(404).json({ message: "Sales report not found" });
+		} else {
+			// .get(
+			// 	"https://cakery-ai-s3.s3-ap-southeast-1.amazonaws.com/CakeMonthlySaleReport.csv",
 
-					// A chunk of data has been received.
-					resp.on("data", (chunk) => {
-						// console.log("GET chunk: " + chunk);
-						data += chunk;
-					});
+			// .get(results[0]?.["fileURL"], (resp) => {
+			//
+			//
 
-					// The whole response has been received. Print out the result.
-					resp.on("end", () => {
-						// console.log(data);
-						res.status(200).json(data);
-					});
+			const csvData = await getSalesReport(results[0]?.["fileURL"]);
+
+			if (!csvData) {
+			} else {
+				res.status(200).json(csvData);
+			}
+		}
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ message: "internel server errorss" });
+	}
+});
+
+// testing
+// router.get("/getSalesReportCSV", async (req, res) => {
+// 	try {
+// 		// .get(
+// 		// 	"https://cakery-ai-s3.s3-ap-southeast-1.amazonaws.com/CakeMonthlySaleReport.csv",
+
+// 		// .get(results[0]?.["fileURL"], (resp) => {
+// 		//
+// 		//
+
+// 		const csvData = await getSalesReport(req.query.url);
+
+// 		if (!csvData) {
+// 		} else {
+// 			res.status(200).json(csvData);
+// 		}
+// 	} catch (error) {
+// 		console.log(error);
+// 		res.status(500).json({ message: "internel server errorss" });
+// 	}
+// });
+
+router.get("/getpreviousSaleswithpredict", verifyToken(), async (req, res) => {
+	try {
+		const results = await db.getReportDetailsForPrediction(
+			req.loggedUserDetails
+		);
+
+		if (results.length == 0 || !results[0]?.["fileURL"]) {
+			res.status(404).json({ message: "Sales report not found" });
+		} else {
+			const csvData = await getSalesReport(results[0]?.["fileURL"]);
+
+			const headers = JSON.parse(results[0]?.["headers"]);
+
+			headers.forEach((element) => {
+				if (element["mappedProductID"] == req.query["productID"]) {
+					results[0]["needPrediction"] = element["name"];
 				}
-			)
-			.on("error", (err) => {
-				console.log("GET Error: " + err);
-				res.status(500).json({ message: "internel server error : aws" });
 			});
+			// console.log(results);
+			if (!csvData || !results[0]["needPrediction"]) {
+				console.log("There is no csv data or mapped product");
+				res
+					.status(400)
+					.json({ message: "There is no csv data or mapped product" });
+			} else {
+				const labels = [];
+				const data = [];
+
+				csvData.forEach((element) => {
+					if (moment(element["Month"]).format("YYYY") == "2020") {
+						labels.push(element["Month"]);
+						data.push(element[results[0]["needPrediction"]]);
+					}
+				});
+				res.status(200).json({ labels, data });
+			}
+		}
+		// }
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ message: "internel server errorss" });
+	}
+});
+
+router.get("/getnextmonthpredict", verifyToken(), async (req, res) => {
+	try {
+		console.log("productID ", req.query);
+		const result = await db.getReportDetailsForPrediction(
+			req.loggedUserDetails
+		);
+
+		const headers = JSON.parse(result[0]?.["headers"]);
+
+		if (headers.length) {
+			headers.forEach((element) => {
+				if (element["mappedProductID"] == req.query["productID"]) {
+					result[0]["needPrediction"] = element["name"];
+					// console.log(result[0]["needPrediction"]);
+				}
+			});
+		}
+
+		console.log(result[0]["needPrediction"]);
+		if (!result[0]["needPrediction"]) {
+			res.status(400).json({
+				message:
+					"This product has not been mapped with your activated sales report",
+			});
+		} else {
+			console.log(result[0]);
+			if (result[0]["fileURL"] && result[0]["needPrediction"]) {
+				result[0]["monthsCount"] = 1;
+				delete result[0].headers;
+
+				const predictions = await getPredictionBySalesreport(result[0]);
+
+				console.log("predictions : ", predictions);
+				res.status(200).json(predictions);
+			} else {
+				res.status(404).json({
+					message: "File url missing or the mapped section is not correct.",
+				});
+			}
+		}
 	} catch (error) {
 		console.log(error);
 		res.status(500).json({ message: "internel server errorss" });
@@ -731,71 +778,68 @@ router.get("/Automateemail", async (req, res) => {
 
 		// part 2
 
-		result.forEach(async (element) => {
-			const products = await db.getproductsdetails({ _uid: element["userId"] });
+		var bar = new Promise((resolve, reject) => {
+			const userProductList = [];
+			result.forEach(async (element) => {
+				const products = await db.getproductsdetails({
+					_uid: element["userId"],
+				});
 
-			products.forEach((product) => {
-				const headers = JSON.parse(element?.["headers"]);
-				if (headers.length) {
-					headers.forEach(async (header) => {
-						if (header["mappedProductID"] == product["_id"]) {
-							element["needPrediction"] = header["name"];
-							// console.log(result[0]["needPrediction"])
+				new Promise((resolve, reject) => {
+					const neededProductsList = [];
+					products.forEach((product) => {
+						const headers = JSON.parse(element?.["headers"]);
+						if (headers.length) {
+							headers.forEach(async (header) => {
+								if (header["mappedProductID"] == product["_id"]) {
+									// element["needPrediction"] = header["name"];
+									console.log(header["name"]);
+									neededProductsList.push(header["name"]);
+									console.log(neededProductsList);
+									// console.log(header["name"]);
+									// // console.log(result[0]["needPrediction"])
 
-							console.log("needPrediction", element["needPrediction"]);
-							if (!element["needPrediction"]) {
-								res.status(400).json({
-									message:
-										"This product has not been mapped with your activated sales report",
-								});
-							} else {
-								console.log(element);
-								if (element["fileURL"] && element["needPrediction"]) {
-									element["monthsCount"] = 4;
+									// // console.log("needPrediction", element["needPrediction"]);
 
-									callPredictApi(element);
+									// if (!element["needPrediction"]) {
+									// 	// res.status(400).json({
+									// 	// 	message:
+									// 	// 		"This product has not been mapped with your activated sales report",
+									// 	// });
 
-									// .then((result) => {
-									// 	if (result) {
-									// 		transpoter.sendMail(
-									// 			{
-									// 				// to: req.body.email,
-									// 				to: savedUser[0].email,
-									// 				from: fromEmail,
-									// 				subject: "[CakeryAi.com] Reset your password 1",
-									// 				html: template_reset_password.resetPassword(
-									// 					"ggggg",
-									// 					frontEndUrl,
-									// 					token
-									// 				),
-									// 			},
-									// 			(error, response) => {
-									// 				if (error) {
-									// 					console.log(error);
-									// 				}
-									// 				res.status(200).json({
-									// 					message:
-									// 						"If you are an admin,you will get a mail to the Admin's email.",
-									// 				});
-									// 			}
-									// 		);
+									// 	console.log("not mapped :", product["productName"]);
+									// } else {
+									// 	// console.log(element);
+									// 	if (element["fileURL"] && element["needPrediction"]) {
+									// 		element["monthsCount"] = 4;
+									// 		console.log(element["fileURL"]);
+									// 		// callPredictApi(element);
+									// 		neededProductsList.push(element);
+									// 	} else {
+									// 		res.status(404).json({
+									// 			message:
+									// 				"File url missing or the mapped section is not correct.",
+									// 		});
 									// 	}
-									// })
-									// .catch((err) => {
-									// 	console.log(err);
-									// 	res.status(409).send("Something wrong!");
-									// });
-								} else {
-									res.status(404).json({
-										message:
-											"File url missing or the mapped section is not correct.",
-									});
+									// }
 								}
-							}
+							});
+							resolve();
 						}
 					});
-				}
+					element["needPrediction"] = neededProductsList;
+				}).then((results) => {
+					console.log("neededProductsList", element);
+					// res.status(200).json(results);
+					delete element?.["headers"];
+					callPredictApi(res, element);
+				});
+				// console.log(userProductList);
+				resolve(userProductList);
 			});
+		}).then((results) => {
+			console.log(results);
+			res.status(200).json(results);
 		});
 	} catch (error) {
 		console.log(error);
@@ -805,15 +849,19 @@ router.get("/Automateemail", async (req, res) => {
 
 // function
 
-function callPredictApi(element) {
+function callPredictApi(res, element) {
 	console.log("element  2 ", element);
+
 	const requestUrl = url.parse(
 		url.format({
 			protocol: "http",
 			hostname: "localhost",
 			port: 8000,
-			pathname: "/app/getPredictionEduraca",
-			query: element,
+			pathname: "/app/getMonthlyPrediction",
+			query: {
+				fileURL: element["fileURL"],
+				needPrediction: JSON.stringify(element["needPrediction"]),
+			},
 		})
 	);
 
@@ -837,7 +885,7 @@ function callPredictApi(element) {
 			});
 		})
 		.on("error", (err) => {
-			console.log("GET Error 1: " + err);
+			// console.log("GET Error 1: " + err);
 			res.status(500).json({ message: "internel server errorss" });
 		});
 }
@@ -852,7 +900,7 @@ function sendMonthlyEmails(element, predictions) {
 			html: template_Monthly_Predict_Report.sendMail(
 				element["userName"],
 				frontEndUrl,
-				"token"
+				element
 			),
 		},
 		(error, response) => {

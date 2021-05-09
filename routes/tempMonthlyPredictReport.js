@@ -1,9 +1,9 @@
 const website = "CakeryAi";
 
-function sendMail(uName, frontEndUrl, token) {
-	let trList = addTr();
+function sendMail(uName, frontEndUrl, prediction = []) {
+	let trList = addTr(prediction);
 
-	console.log("tr list ", trList);
+	console.log("tr list ", prediction.length);
 
 	return `
     <div
@@ -1008,10 +1008,10 @@ function sendMail(uName, frontEndUrl, token) {
     `;
 }
 
-function addTr() {
+function addTr(prediction = []) {
 	trList = "";
 
-	for (let i = 0; i < 3; i++) {
+	for (let i = 0; i < prediction.length; i++) {
 		trList += `<tr style="text-align: center">
 			<td style="padding: 8px 10px">001</td>
 			<td style="padding: 8px 10px">Chocolate cake</td>

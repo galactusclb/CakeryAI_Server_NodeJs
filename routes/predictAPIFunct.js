@@ -86,7 +86,11 @@ function pro_trainModel(details) {
 				hostname: "localhost",
 				port: 8000,
 				pathname: "/app/trainPredict",
-				query: details,
+				query: {
+					fileURL: details["fileURL"],
+					needPrediction: JSON.stringify(details["needPrediction"]),
+					monthsCount: 1,
+				},
 			})
 		);
 		console.log(url.format(requestUrl));

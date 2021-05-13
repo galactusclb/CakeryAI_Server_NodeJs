@@ -736,40 +736,56 @@ router.get("/getnextmonthpredict", verifyToken(), async (req, res) => {
 });
 
 // pro users
-router.put("/trainmodel", verifyToken(), async (req, res) => {
+router.get("/trainmodel", verifyToken(), async (req, res) => {
 	try {
-		const results = await db.getReportDetailsForPrediction(
-			req.loggedUserDetails
+		const result = await db.getReportDetailsForPredictionByreportID(
+			req.loggedUserDetails,
+			req.query.reportID
 		);
 
-		console.log(results);
-		// await pro_trainModel()
-		// const results = await db.trainModel(req.loggedUserDetails, req.body);
+		console.log(req.query);
 
-		// .then((result) => {
-		// 	if (result) {
-		// 		//get user email
-		// 		const user = await db.findUserById(req.loggedUserDetails);
+		console.log(result);
+		const headers = JSON.parse(result[0]?.["headers"]);
+		console.log(headers);
 
-		// 		//send notification
-		// 		transpoter.sendMail({
-		// 			to: user[0].email,
-		// 			from: fromEmail,
-		// 			subject: "[Cakery.Ai] Your model has been trained successfully.",
-		// 			html: template_notifyTrainingComplete.notifyTrainingComplete(
-		// 				user[0].userName,
-		// 				frontEndUrl
-		// 			),
-		// 		});
+		needPrediction = [];
 
-		res.status(200).json({
-			message: "Your model is training now.",
-		});
+		if (headers.length) {
+			headers.forEach((element) => {
+				if (element["name"] != "Month") {
+					needPrediction.push(element["name"]);
+				}
+			});
+		}
 
-		// 	}
-		// }).catch((err) => {
-		// 	console.log(err);
-		// 	res.status(409).send("Something wrong!");
+		result[0]["needPrediction"] = needPrediction;
+
+		console.log(result[0]["needPrediction"]);
+		if (!result[0]["needPrediction"]) {
+			res.status(400).json({
+				message:
+					"This product has not been mapped with your activated sales report",
+			});
+		} else {
+			console.log(result[0]);
+			if (result[0]["fileURL"] && result[0]["needPrediction"]) {
+				result[0]["monthsCount"] = 1;
+				delete result[0].headers;
+
+				const predictions = await pro_trainModel(result[0]);
+
+				console.log("predictions : ", predictions);
+				res.status(200).json(predictions);
+			} else {
+				res.status(404).json({
+					message: "File url missing or the mapped section is not correct.",
+				});
+			}
+		}
+
+		// res.status(200).json({
+		// 	message: "Your model is training now.",
 		// });
 	} catch (error) {
 		res.status(400).json({ message: "server error" });

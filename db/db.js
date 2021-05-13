@@ -333,14 +333,14 @@ db.uploadReport = (file, user, body) => {
 	console.log(body);
 	return new Promise((resolve, reject) => {
 		pool.query(
-			"INSERT INTO uploadedReport(userId,uploadedFile,fileURL,file_key,headers,selectedColumn,accuracy,activate,status,timestamp) VALUES(?,?,?,?,?,?,?,?,?,?)",
+			"INSERT INTO uploadedReport(userId,uploadedFile,fileURL,file_key,headers,lastMonthDetails,accuracy,activate,status,timestamp) VALUES(?,?,?,?,?,?,?,?,?,?)",
 			[
 				user._uid,
 				file.originalname,
 				file.location,
 				file.key,
 				body.headers,
-				body.selectedColumn,
+				body.lastMonthDetails,
 				"Not available",
 				null,
 				"Initial",
@@ -571,7 +571,7 @@ db.getproductdetailsbyproduct = (user, productId) => {
 db.getActivatedModelDetails = (user) => {
 	return new Promise((resolve, reject) => {
 		pool.query(
-			"SELECT _id,status FROM uploadedreport WHERE activate=? AND userId=?",
+			"SELECT _id,uploadedFile,headers,lastMonthDetails,status FROM uploadedreport WHERE activate=? AND userId=?",
 			[1, user._uid],
 			(err, results) => {
 				if (err) {
@@ -590,6 +590,21 @@ db.getReportDetailsForPrediction = (user) => {
 		pool.query(
 			"SELECT fileURL,headers FROM uploadedreport WHERE userId=? AND activate=?",
 			[user._uid, 1],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
+db.getReportDetailsForPredictionByreportID = (user, reportID) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"SELECT fileURL,headers FROM uploadedreport WHERE userId=? AND _id=?",
+			[user._uid, reportID],
 			(err, results) => {
 				if (err) {
 					reject(err);

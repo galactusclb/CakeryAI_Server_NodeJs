@@ -1,6 +1,6 @@
 const website = "CakeryAi";
 
-function sendMail(uName, frontEndUrl, prediction = []) {
+function sendMail(details, frontEndUrl, prediction = []) {
 	let trList = addTr(prediction);
 
 	console.log("tr list ", prediction.length);
@@ -237,7 +237,7 @@ function sendMail(uName, frontEndUrl, prediction = []) {
 														text-align: left;
 													"
 												>
-													Monthly prediction of June report based on no:01
+													Monthly prediction of June report based on no: <a href="${frontEndUrl}train?_id=${details["salesReportId"]}">this</a>
 													uploaded file
 													<br style="border: none; padding: 0; margin: 0" />
 												</p>
@@ -1013,9 +1013,9 @@ function addTr(prediction = []) {
 
 	for (let i = 0; i < prediction.length; i++) {
 		trList += `<tr style="text-align: center">
-			<td style="padding: 8px 10px">001</td>
-			<td style="padding: 8px 10px">Chocolate cake</td>
-			<td style="padding: 8px 10px">22</td>
+			<td style="padding: 8px 10px">${i + 1}</td>
+			<td style="padding: 8px 10px">${prediction[i]["product"]}</td>
+			<td style="padding: 8px 10px">${prediction[i]["prediction"].toFixed(2)}</td>
 		</tr>`;
 	}
 

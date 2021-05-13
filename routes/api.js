@@ -23,6 +23,7 @@ const { verifyToken } = require("./basicAuth");
 const {
 	getSalesReport,
 	getPredictionBySalesreport,
+	pro_trainModel,
 } = require("./predictAPIFunct");
 
 const singleUpload = awsMethods.upload.single("report");
@@ -427,40 +428,6 @@ router.put("/changereportsactivesettings", verifyToken(), async (req, res) => {
 	}
 });
 
-router.put("/trainmodel", verifyToken(), async (req, res) => {
-	try {
-		const results = await db.trainModel(req.loggedUserDetails, req.body);
-
-		// .then((result) => {
-		// 	if (result) {
-		// 		//get user email
-		// 		const user = await db.findUserById(req.loggedUserDetails);
-
-		// 		//send notification
-		// 		transpoter.sendMail({
-		// 			to: user[0].email,
-		// 			from: fromEmail,
-		// 			subject: "[Cakery.Ai] Your model has been trained successfully.",
-		// 			html: template_notifyTrainingComplete.notifyTrainingComplete(
-		// 				user[0].userName,
-		// 				frontEndUrl
-		// 			),
-		// 		});
-
-		res.status(200).json({
-			message: "Your model is training now.",
-		});
-
-		// 	}
-		// }).catch((err) => {
-		// 	console.log(err);
-		// 	res.status(409).send("Something wrong!");
-		// });
-	} catch (error) {
-		res.status(400).json({ message: "server error" });
-	}
-});
-
 //ingredients details api functions
 router.post("/addingredientsdetails", verifyToken(), async (req, res) => {
 	// console.log(req.loggedUserDetails);
@@ -657,26 +624,26 @@ router.get("/getSalesReport", verifyToken(), async (req, res) => {
 });
 
 // testing
-// router.get("/getSalesReportCSV", async (req, res) => {
-// 	try {
-// 		// .get(
-// 		// 	"https://cakery-ai-s3.s3-ap-southeast-1.amazonaws.com/CakeMonthlySaleReport.csv",
+router.get("/getSalesReportCSV", async (req, res) => {
+	try {
+		// .get(
+		// 	"https://cakery-ai-s3.s3-ap-southeast-1.amazonaws.com/CakeMonthlySaleReport.csv",
 
-// 		// .get(results[0]?.["fileURL"], (resp) => {
-// 		//
-// 		//
+		// .get(results[0]?.["fileURL"], (resp) => {
+		//
+		//
 
-// 		const csvData = await getSalesReport(req.query.url);
+		const csvData = await getSalesReport(req.query.url);
 
-// 		if (!csvData) {
-// 		} else {
-// 			res.status(200).json(csvData);
-// 		}
-// 	} catch (error) {
-// 		console.log(error);
-// 		res.status(500).json({ message: "internel server errorss" });
-// 	}
-// });
+		if (!csvData) {
+		} else {
+			res.status(200).json(csvData);
+		}
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ message: "internel server errorss" });
+	}
+});
 
 router.get("/getpreviousSaleswithpredict", verifyToken(), async (req, res) => {
 	try {
@@ -762,6 +729,131 @@ router.get("/getnextmonthpredict", verifyToken(), async (req, res) => {
 				});
 			}
 		}
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ message: "internel server errorss" });
+	}
+});
+
+// pro users
+router.put("/trainmodel", verifyToken(), async (req, res) => {
+	try {
+		const results = await db.getReportDetailsForPrediction(
+			req.loggedUserDetails
+		);
+
+		console.log(results);
+		// await pro_trainModel()
+		// const results = await db.trainModel(req.loggedUserDetails, req.body);
+
+		// .then((result) => {
+		// 	if (result) {
+		// 		//get user email
+		// 		const user = await db.findUserById(req.loggedUserDetails);
+
+		// 		//send notification
+		// 		transpoter.sendMail({
+		// 			to: user[0].email,
+		// 			from: fromEmail,
+		// 			subject: "[Cakery.Ai] Your model has been trained successfully.",
+		// 			html: template_notifyTrainingComplete.notifyTrainingComplete(
+		// 				user[0].userName,
+		// 				frontEndUrl
+		// 			),
+		// 		});
+
+		res.status(200).json({
+			message: "Your model is training now.",
+		});
+
+		// 	}
+		// }).catch((err) => {
+		// 	console.log(err);
+		// 	res.status(409).send("Something wrong!");
+		// });
+	} catch (error) {
+		res.status(400).json({ message: "server error" });
+	}
+});
+
+// prediction emails
+
+router.get("/sendmonthlysalesthroughemail", async (req, res) => {
+	try {
+		const result = await db.getAllUsersActivatedReport();
+		console.log(result);
+
+		var bar = new Promise((resolve, reject) => {
+			const userProductList = [];
+			result.forEach(async (element) => {
+				const products = await db.getproductsdetails({
+					_uid: element["userId"],
+				});
+
+				new Promise((resolve, reject) => {
+					const neededProductsList = [];
+					products.forEach((product) => {
+						const headers = JSON.parse(element?.["headers"]);
+						if (headers.length) {
+							headers.forEach(async (header) => {
+								if (header["mappedProductID"] == product["_id"]) {
+									// element["needPrediction"] = header["name"];
+									console.log(header["name"]);
+									neededProductsList.push(header["name"]);
+									console.log(neededProductsList);
+								}
+							});
+							resolve();
+						}
+					});
+					element["needPrediction"] = neededProductsList;
+				}).then((results) => {
+					console.log("neededProductsList", element);
+					// res.status(200).json(results);
+					delete element?.["headers"];
+					callPredictApi(res, element);
+				});
+				// console.log(userProductList);
+				resolve(userProductList);
+			});
+		}).then((results) => {
+			console.log(results);
+			res.status(200).json(results);
+		});
+
+		// const headers = JSON.parse(result[0]?.["headers"]);
+
+		// if (headers.length) {
+		// 	headers.forEach((element) => {
+		// 		if (element["mappedProductID"] == req.query["productID"]) {
+		// 			result[0]["needPrediction"] = element["name"];
+		// 			// console.log(result[0]["needPrediction"]);
+		// 		}
+		// 	});
+		// }
+
+		// console.log(result[0]["needPrediction"]);
+		// if (!result[0]["needPrediction"]) {
+		// 	res.status(400).json({
+		// 		message:
+		// 			"This product has not been mapped with your activated sales report",
+		// 	});
+		// } else {
+		// 	console.log(result[0]);
+		// 	if (result[0]["fileURL"] && result[0]["needPrediction"]) {
+		// 		result[0]["monthsCount"] = 1;
+		// 		delete result[0].headers;
+
+		// 		const predictions = await getPredictionBySalesreport(result[0]);
+
+		// 		console.log("predictions : ", predictions);
+		// 		res.status(200).json(predictions);
+		// 	} else {
+		// 		res.status(404).json({
+		// 			message: "File url missing or the mapped section is not correct.",
+		// 		});
+		// 	}
+		// }
 	} catch (error) {
 		console.log(error);
 		res.status(500).json({ message: "internel server errorss" });
@@ -861,6 +953,7 @@ function callPredictApi(res, element) {
 			query: {
 				fileURL: element["fileURL"],
 				needPrediction: JSON.stringify(element["needPrediction"]),
+				monthsCount: 1,
 			},
 		})
 	);
@@ -879,7 +972,7 @@ function callPredictApi(res, element) {
 			// The whole response has been received. Print out the result.
 			resp.on("end", async () => {
 				// res.status(200).json(JSON.parse(data));
-				// console.log(data);
+				console.log(data);
 				// output.push(JSON.parse(data));
 				sendMonthlyEmails(element, data);
 			});
@@ -891,6 +984,7 @@ function callPredictApi(res, element) {
 }
 
 function sendMonthlyEmails(element, predictions) {
+	// console.log(element, JSON.parse(predictions));
 	transpoter.sendMail(
 		{
 			// to: req.body.email,
@@ -898,9 +992,9 @@ function sendMonthlyEmails(element, predictions) {
 			from: fromEmail,
 			subject: "[CakeryAi.com] Month prediction report",
 			html: template_Monthly_Predict_Report.sendMail(
-				element["userName"],
+				element,
 				frontEndUrl,
-				element
+				JSON.parse(predictions)
 			),
 		},
 		(error, response) => {

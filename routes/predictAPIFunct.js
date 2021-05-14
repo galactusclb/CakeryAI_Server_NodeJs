@@ -88,6 +88,7 @@ function pro_trainModel(details) {
 				pathname: "/app/trainPredict",
 				query: {
 					fileURL: details["fileURL"],
+					userId: details["userId"],
 					needPrediction: JSON.stringify(details["needPrediction"]),
 					monthsCount: 1,
 				},
@@ -95,17 +96,26 @@ function pro_trainModel(details) {
 		);
 		console.log(url.format(requestUrl));
 		http
-			.get(url.format(requestUrl), (resp) => {
+			.get(url.format(requestUrl), (response) => {
 				let data = "";
 
-				resp.on("data", (chunk) => {
+				response.on("data", (chunk) => {
 					data += chunk;
 				});
 
-				resp.on("end", () => {
+				response.on("end", () => {
 					try {
-						// res.status(200).json(JSON.parse(data));
-						resolve(JSON.parse(data));
+						console.log(response.statusCode);
+						if (response.statusCode < 200 || response.statusCode > 299) {
+							reject({
+								status: response.statusCode,
+								message: data,
+							});
+						} else {
+							resolve({ status: response.statusCode, data });
+						}
+
+						// resolve(data);
 					} catch (e) {
 						// internel server errorss 1
 						reject(e);
@@ -119,4 +129,61 @@ function pro_trainModel(details) {
 			});
 	});
 }
-module.exports = { getSalesReport, getPredictionBySalesreport, pro_trainModel };
+
+function pro_getPrediction(details) {
+	return new Promise((resolve, reject) => {
+		const requestUrl = url.parse(
+			url.format({
+				protocol: "http",
+				hostname: "localhost",
+				port: 8000,
+				pathname: "/app/getPredict",
+				query: {
+					fileURL: details["fileURL"],
+					userId: details["userId"],
+					needPrediction: JSON.stringify(details["needPrediction"]),
+					monthsCount: 1,
+				},
+			})
+		);
+		console.log(url.format(requestUrl));
+		http
+			.get(url.format(requestUrl), (response) => {
+				let data = "";
+
+				response.on("data", (chunk) => {
+					data += chunk;
+				});
+
+				response.on("end", () => {
+					try {
+						console.log(response.statusCode);
+						if (response.statusCode < 200 || response.statusCode > 299) {
+							reject({
+								status: response.statusCode,
+								message: data,
+							});
+						} else {
+							resolve({ status: response.statusCode, data });
+						}
+
+						// resolve(data);
+					} catch (e) {
+						// internel server errorss 1
+						reject(e);
+					}
+				});
+			})
+			.on("error", (err) => {
+				// console.log("GET Error 1: " + err);
+				console.log("api error xxxxxxxx");
+				reject(err);
+			});
+	});
+}
+module.exports = {
+	getSalesReport,
+	getPredictionBySalesreport,
+	pro_trainModel,
+	pro_getPrediction,
+};

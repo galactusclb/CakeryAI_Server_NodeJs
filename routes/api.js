@@ -24,6 +24,7 @@ const {
 	getSalesReport,
 	getPredictionBySalesreport,
 	pro_trainModel,
+	pro_getPrediction,
 } = require("./predictAPIFunct");
 
 const singleUpload = awsMethods.upload.single("report");
@@ -58,10 +59,14 @@ router.post(
 			// 	console.log(errors);
 			// 	res.status(422).send(errors);
 			// } else {
+
+			console.log(req.body);
 			let savedUser = await db.findOneUser(req.body);
 
 			if (savedUser) {
-				return res.status(422).json("User already exists with that username.");
+				return res
+					.status(422)
+					.json("User already exists with that username/email.");
 			} else {
 				const saltRound = 10;
 				const hashpassword = await bcrypt.hash(req.body.password, saltRound);
@@ -738,16 +743,14 @@ router.get("/getnextmonthpredict", verifyToken(), async (req, res) => {
 // pro users
 router.get("/trainmodel", verifyToken(), async (req, res) => {
 	try {
+		// get file details
 		const result = await db.getReportDetailsForPredictionByreportID(
 			req.loggedUserDetails,
 			req.query.reportID
 		);
 
-		console.log(req.query);
-
-		console.log(result);
+		// get mapped products list
 		const headers = JSON.parse(result[0]?.["headers"]);
-		console.log(headers);
 
 		needPrediction = [];
 
@@ -773,10 +776,26 @@ router.get("/trainmodel", verifyToken(), async (req, res) => {
 				result[0]["monthsCount"] = 1;
 				delete result[0].headers;
 
-				const predictions = await pro_trainModel(result[0]);
+				// update the file status untill training complete
+				await db.updateProUsers_trainedModelStatus(
+					req.loggedUserDetails,
+					req.query.reportID,
+					"training"
+				);
+				res.status(200).json({ message: "model is on training" });
+				// call the django api for train the model
+				const trainResults = await pro_trainModel(result[0]);
 
-				console.log("predictions : ", predictions);
-				res.status(200).json(predictions);
+				if (trainResults.status < 200 || trainResults.status > 299) {
+					res.status(trainResults.status).json(trainResults.message);
+				} else {
+					// save trained model url path in db
+					await db.updateProUsers_trainedModelPaths(
+						req.loggedUserDetails,
+						req.query.reportID,
+						trainResults["data"]
+					);
+				}
 			} else {
 				res.status(404).json({
 					message: "File url missing or the mapped section is not correct.",
@@ -789,6 +808,57 @@ router.get("/trainmodel", verifyToken(), async (req, res) => {
 		// });
 	} catch (error) {
 		res.status(400).json({ message: "server error" });
+	}
+});
+
+router.get("/getpredictionpro", verifyToken(), async (req, res) => {
+	try {
+		const result = await db.getReportDetailsForPrediction_Pro(
+			req.loggedUserDetails
+		);
+
+		const poductsList = await db.getproductsdetails(req.loggedUserDetails);
+
+		console.log(req.query);
+
+		console.log(result);
+
+		const headers = JSON.parse(result[0]?.["headers"]);
+
+		if (headers.length) {
+			headers.forEach((element) => {
+				if (element["mappedProductID"] == req.query["productID"]) {
+					result[0]["needPrediction"] = element["name"];
+					// console.log(result[0]["needPrediction"]);
+				}
+			});
+		}
+
+		console.log(result[0]["needPrediction"]);
+		if (!result[0]["needPrediction"]) {
+			res.status(400).json({
+				message:
+					"This product has not been mapped with your activated sales report",
+			});
+		} else {
+			console.log(result[0]);
+			if (result[0]["fileURL"] && result[0]["needPrediction"]) {
+				result[0]["monthsCount"] = 1;
+				delete result[0].headers;
+
+				// const predictions = await getPredictionBySalesreport(result[0]);
+				const predictions = await pro_getPrediction(result[0]);
+
+				console.log("predictions : ", predictions);
+				res.status(200).json(predictions);
+			} else {
+				res.status(404).json({
+					message: "File url missing or the mapped section is not correct.",
+				});
+			}
+		}
+	} catch (error) {
+		console.log(error);
 	}
 });
 

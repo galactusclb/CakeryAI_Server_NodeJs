@@ -21,6 +21,7 @@ db.findOneUser = (data) => {
 
 		if (data["email"]) {
 			where = "OR email=?";
+			params = [data["userName"], data["email"]];
 		}
 		pool.query(
 			"SELECT userId,userName,email FROM users WHERE userName=?" + where,
@@ -571,7 +572,7 @@ db.getproductdetailsbyproduct = (user, productId) => {
 db.getActivatedModelDetails = (user) => {
 	return new Promise((resolve, reject) => {
 		pool.query(
-			"SELECT _id,uploadedFile,headers,lastMonthDetails,status FROM uploadedreport WHERE activate=? AND userId=?",
+			"SELECT _id,uploadedFile,headers,lastMonthDetails,preTrainedModelURL,status FROM uploadedreport WHERE activate=? AND userId=?",
 			[1, user._uid],
 			(err, results) => {
 				if (err) {
@@ -600,11 +601,57 @@ db.getReportDetailsForPrediction = (user) => {
 	});
 };
 
+db.getReportDetailsForPrediction_Pro = (user) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"SELECT fileURL,headers,preTrainedModelURL,lastMonthDetails FROM uploadedreport WHERE userId=? AND activate=?",
+			[user._uid, 1],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
 db.getReportDetailsForPredictionByreportID = (user, reportID) => {
 	return new Promise((resolve, reject) => {
 		pool.query(
-			"SELECT fileURL,headers FROM uploadedreport WHERE userId=? AND _id=?",
+			"SELECT fileURL,headers,userId FROM uploadedreport WHERE userId=? AND _id=?",
 			[user._uid, reportID],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
+db.updateProUsers_trainedModelStatus = (user, reportID, status) => {
+	return new Promise((resolve, reject) => {
+		var gg = pool.query(
+			"UPDATE uploadedreport SET status=? WHERE userId=? AND _id=?",
+			[status, user._uid, reportID],
+			(err, results) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(results);
+				console.log(gg.sql);
+			}
+		);
+	});
+};
+
+db.updateProUsers_trainedModelPaths = (user, reportID, data) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"UPDATE uploadedreport SET preTrainedModelURL=?,status=? WHERE userId=? AND _id=?",
+			[data, "complete", user._uid, reportID],
 			(err, results) => {
 				if (err) {
 					reject(err);

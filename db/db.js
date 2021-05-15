@@ -131,7 +131,7 @@ db.registerUser = (data, hashpassword, token, expireToken) => {
 db.loginUser = (uName, uPass) => {
 	return new Promise((resolve, reject) => {
 		pool.query(
-			"SELECT userId,userName,email,password,userRole,isConfirm,status FROM users WHERE userName=? OR email=? LIMIT 1",
+			"SELECT userId,userName,email,password,userRole,isConfirm,subscriptionLevel,status FROM users WHERE userName=? OR email=? LIMIT 1",
 			[uName, uName],
 			async (err, results) => {
 				if (err) {
@@ -173,6 +173,7 @@ db.loginUser = (uName, uPass) => {
 								id: results[0].userId,
 								userName: results[0].userName,
 								role: results[0].userRole,
+								subscriptionLevel: results[0].subscriptionLevel,
 							};
 							// console.log(results[0].uName)
 							tt.push(ress);

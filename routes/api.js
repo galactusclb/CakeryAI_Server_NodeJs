@@ -135,6 +135,7 @@ router.post("/loginUser", async (req, res, next) => {
 				_uid: result[0].id,
 				userName: result[0].userName,
 				role: result[0].role,
+				subscriptionLevel: result[0].subscriptionLevel,
 			};
 
 			let jwtToken = jwt.sign(
@@ -154,6 +155,7 @@ router.post("/loginUser", async (req, res, next) => {
 							_uid: result[0].id,
 							userName: result[0].userName,
 							role: result[0].role,
+							subscriptionLevel: result[0].subscriptionLevel,
 							// expiresIn: 120,// 2min expire time
 							expiresIn: 18000, //5hours in seconds
 						});
@@ -819,12 +821,6 @@ router.get("/getpredictionpro", verifyToken(), async (req, res) => {
 			req.loggedUserDetails
 		);
 
-		// const poductsList = await db.getproductsdetails(req.loggedUserDetails);
-
-		console.log(req.query);
-
-		console.log(result);
-
 		const headers = JSON.parse(result[0]?.["headers"]);
 
 		if (headers.length) {
@@ -836,7 +832,7 @@ router.get("/getpredictionpro", verifyToken(), async (req, res) => {
 				}
 			});
 		}
-		console.log(result[0]["needPrediction"]);
+		// console.log(result[0]["needPrediction"]);
 
 		if (!result[0]["needPrediction"]) {
 			res.status(400).json({
@@ -856,7 +852,12 @@ router.get("/getpredictionpro", verifyToken(), async (req, res) => {
 				const predictions = await pro_getPrediction(result[0]);
 
 				console.log("predictions : ", predictions);
-				res.status(200).json(predictions);
+				if (predictions.status < 200 || predictions.status > 299) {
+					res.status(trainResults.status).json(predictions.message);
+				} else {
+					console.log(JSON.parse(predictions?.["data"]));
+					res.status(200).json(JSON.parse(predictions?.["data"]));
+				}
 			} else {
 				res.status(404).json({
 					message: "File url missing or the mapped section is not correct.",
@@ -865,6 +866,7 @@ router.get("/getpredictionpro", verifyToken(), async (req, res) => {
 		}
 	} catch (error) {
 		console.log(error);
+		res.status(error.status).json(error.message);
 	}
 });
 

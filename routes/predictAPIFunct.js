@@ -45,7 +45,7 @@ function getPredictionBySalesreport(details) {
 				protocol: "http",
 				hostname: "localhost",
 				port: 8000,
-				pathname: "/app/getPredictionEduraca",
+				pathname: "/app/getPredictionFree",
 				query: details,
 			})
 		);
@@ -137,9 +137,10 @@ function pro_getPrediction(details) {
 				protocol: "http",
 				hostname: "localhost",
 				port: 8000,
-				pathname: "/app/getPredict",
+				pathname: "/app/getPredictPro",
 				query: {
 					fileURL: details["fileURL"],
+					modelURL: details["trainedModelURL"],
 					userId: details["userId"],
 					needPrediction: JSON.stringify(details["needPrediction"]),
 					monthsCount: 1,

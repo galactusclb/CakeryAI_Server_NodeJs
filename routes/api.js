@@ -27,6 +27,8 @@ const {
 	pro_getPrediction,
 } = require("./predictAPIFunct");
 
+const { examineTrainedModelURL } = require("./extraFunctions");
+
 const singleUpload = awsMethods.upload.single("report");
 
 const router = express.Router();
@@ -817,7 +819,7 @@ router.get("/getpredictionpro", verifyToken(), async (req, res) => {
 			req.loggedUserDetails
 		);
 
-		const poductsList = await db.getproductsdetails(req.loggedUserDetails);
+		// const poductsList = await db.getproductsdetails(req.loggedUserDetails);
 
 		console.log(req.query);
 
@@ -830,18 +832,22 @@ router.get("/getpredictionpro", verifyToken(), async (req, res) => {
 				if (element["mappedProductID"] == req.query["productID"]) {
 					result[0]["needPrediction"] = element["name"];
 					// console.log(result[0]["needPrediction"]);
+					result[0]["trainedModelURL"] = element["name"];
 				}
 			});
 		}
-
 		console.log(result[0]["needPrediction"]);
+
 		if (!result[0]["needPrediction"]) {
 			res.status(400).json({
 				message:
 					"This product has not been mapped with your activated sales report",
 			});
 		} else {
-			console.log(result[0]);
+			const modelURL = await examineTrainedModelURL(result[0]);
+			console.log("examineTrainedModelURL with : ", modelURL);
+
+			// console.log(result[0]);
 			if (result[0]["fileURL"] && result[0]["needPrediction"]) {
 				result[0]["monthsCount"] = 1;
 				delete result[0].headers;

@@ -3,6 +3,11 @@ const https = require("https");
 const csv = require("csvtojson");
 const url = require("url");
 
+require("dotenv").config();
+
+const PredictAPIUrl = process.env.PredictAPIUrl || "localhost";
+
+// get sales report from aws s3 bucket
 function getSalesReport(fileURL) {
 	return new Promise((resolve, reject) => {
 		// "https://cakery-ai-s3.s3-ap-southeast-1.amazonaws.com/CakeMonthlySaleReport.csv"
@@ -42,15 +47,14 @@ function getPredictionBySalesreport(details) {
 	return new Promise((resolve, reject) => {
 		const requestUrl = url.parse(
 			url.format({
-				protocol: "http",
-				hostname: "localhost",
-				port: 8000,
+				protocol: "https",
+				hostname: PredictAPIUrl,
 				pathname: "/app/getPredictionFree",
 				query: details,
 			})
 		);
 		console.log(url.format(requestUrl));
-		http
+		https
 			.get(url.format(requestUrl), (resp) => {
 				let data = "";
 
@@ -70,7 +74,6 @@ function getPredictionBySalesreport(details) {
 				});
 			})
 			.on("error", (err) => {
-				// console.log("GET Error 1: " + err);
 				console.log("api error xxxxxxxx");
 				reject(err);
 			});
@@ -82,9 +85,8 @@ function pro_trainModel(details) {
 	return new Promise((resolve, reject) => {
 		const requestUrl = url.parse(
 			url.format({
-				protocol: "http",
-				hostname: "localhost",
-				port: 8000,
+				protocol: "https",
+				hostname: PredictAPIUrl,
 				pathname: "/app/trainPredict",
 				query: {
 					fileURL: details["fileURL"],
@@ -95,7 +97,7 @@ function pro_trainModel(details) {
 			})
 		);
 		console.log(url.format(requestUrl));
-		http
+		https
 			.get(url.format(requestUrl), (response) => {
 				let data = "";
 
@@ -134,9 +136,8 @@ function pro_getPrediction(details) {
 	return new Promise((resolve, reject) => {
 		const requestUrl = url.parse(
 			url.format({
-				protocol: "http",
-				hostname: "localhost",
-				port: 8000,
+				protocol: "https",
+				hostname: PredictAPIUrl,
 				pathname: "/app/getPredictPro",
 				query: {
 					fileURL: details["fileURL"],
@@ -148,7 +149,7 @@ function pro_getPrediction(details) {
 			})
 		);
 		console.log(url.format(requestUrl));
-		http
+		https
 			.get(url.format(requestUrl), (response) => {
 				let data = "";
 

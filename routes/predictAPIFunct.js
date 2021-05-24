@@ -5,7 +5,8 @@ const url = require("url");
 
 require("dotenv").config();
 
-const PredictAPIUrl = process.env.PredictAPIUrl || "localhost";
+const PredictAPIUrl = process.env.PredictAPIUrl;
+const dev_PredictAPIUrl = "localhost";
 
 // get sales report from aws s3 bucket
 function getSalesReport(fileURL) {
@@ -47,14 +48,15 @@ function getPredictionBySalesreport(details) {
 	return new Promise((resolve, reject) => {
 		const requestUrl = url.parse(
 			url.format({
-				protocol: "https",
-				hostname: PredictAPIUrl,
+				...(dev_PredictAPIUrl ? { protocol: "http" } : { protocol: "https" }),
+				hostname: dev_PredictAPIUrl,
+				...(dev_PredictAPIUrl ? { port: 8000 } : {}),
 				pathname: "/app/getPredictionFree",
 				query: details,
 			})
 		);
 		console.log(url.format(requestUrl));
-		https
+		http
 			.get(url.format(requestUrl), (resp) => {
 				let data = "";
 
@@ -85,8 +87,9 @@ function pro_trainModel(details) {
 	return new Promise((resolve, reject) => {
 		const requestUrl = url.parse(
 			url.format({
-				protocol: "https",
-				hostname: PredictAPIUrl,
+				...(dev_PredictAPIUrl ? { protocol: "http" } : { protocol: "https" }),
+				hostname: dev_PredictAPIUrl,
+				...(dev_PredictAPIUrl ? { port: 8000 } : {}),
 				pathname: "/app/trainPredict",
 				query: {
 					fileURL: details["fileURL"],
@@ -97,7 +100,7 @@ function pro_trainModel(details) {
 			})
 		);
 		console.log(url.format(requestUrl));
-		https
+		http
 			.get(url.format(requestUrl), (response) => {
 				let data = "";
 
@@ -136,8 +139,9 @@ function pro_getPrediction(details) {
 	return new Promise((resolve, reject) => {
 		const requestUrl = url.parse(
 			url.format({
-				protocol: "https",
-				hostname: PredictAPIUrl,
+				...(dev_PredictAPIUrl ? { protocol: "http" } : { protocol: "https" }),
+				hostname: dev_PredictAPIUrl,
+				...(dev_PredictAPIUrl ? { port: 8000 } : {}),
 				pathname: "/app/getPredictPro",
 				query: {
 					fileURL: details["fileURL"],
@@ -149,7 +153,7 @@ function pro_getPrediction(details) {
 			})
 		);
 		console.log(url.format(requestUrl));
-		https
+		http
 			.get(url.format(requestUrl), (response) => {
 				let data = "";
 

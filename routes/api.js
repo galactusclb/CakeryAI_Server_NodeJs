@@ -375,6 +375,22 @@ router.post("/updateuserpersonaldetails", verifyToken(), async (req, res) => {
 });
 // end of user account api
 
+// user subcription api function
+router.post("/subscribepremiumplan", verifyToken(), async (req, res) => {
+	try {
+		console.log(req.body);
+		await db.subscribePremiumPlan(req.loggedUserDetails, req.body);
+
+		res
+			.status(200)
+			.json({ message: "You successfully subscribed to the premium plan." });
+	} catch (error) {
+		res.status(500).json({ message: "server error" });
+	}
+});
+
+// end of user subcription db function
+
 //upload training reports
 router.post("/upload-report", verifyToken(), async (req, res) => {
 	// console.log(req.loggedUserDetails);
@@ -744,7 +760,7 @@ router.get("/getnextmonthpredict", verifyToken(), async (req, res) => {
 	}
 });
 
-// pro users
+// TODO: **********pro users api function
 router.get("/trainmodel", verifyToken(), async (req, res) => {
 	try {
 		// get file details
@@ -768,14 +784,14 @@ router.get("/trainmodel", verifyToken(), async (req, res) => {
 
 		result[0]["needPrediction"] = needPrediction;
 
-		console.log(result[0]["needPrediction"]);
+		// console.log(result[0]["needPrediction"]);
 		if (!result[0]["needPrediction"]) {
 			res.status(400).json({
 				message:
 					"This product has not been mapped with your activated sales report",
 			});
 		} else {
-			console.log(result[0]);
+			// console.log(result[0]);
 			if (result[0]["fileURL"] && result[0]["needPrediction"]) {
 				result[0]["monthsCount"] = 1;
 				delete result[0].headers;
@@ -801,6 +817,12 @@ router.get("/trainmodel", verifyToken(), async (req, res) => {
 					);
 				}
 			} else {
+				// update the file status if got error when training
+				await db.updateProUsers_trainedModelStatus(
+					req.loggedUserDetails,
+					req.query.reportID,
+					"error"
+				);
 				res.status(404).json({
 					message: "File url missing or the mapped section is not correct.",
 				});

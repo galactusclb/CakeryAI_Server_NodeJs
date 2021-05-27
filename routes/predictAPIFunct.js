@@ -110,7 +110,6 @@ function pro_trainModel(details) {
 
 				response.on("end", () => {
 					try {
-						console.log(response.statusCode);
 						if (response.statusCode < 200 || response.statusCode > 299) {
 							reject({
 								status: response.statusCode,

@@ -279,7 +279,7 @@ db.resetPassword = (details) => {
 db.getUserDetails = (user) => {
 	return new Promise((resolve, reject) => {
 		pool.query(
-			"SELECT userName,email,fname,lname,phoneNumber,companyName FROM users WHERE userId=? LIMIT 1",
+			"SELECT userName,email,fname,lname,phoneNumber,companyName,subscriptionLevel FROM users WHERE userId=? LIMIT 1",
 			[user._uid],
 			(err, results) => {
 				if (err) {
@@ -330,6 +330,25 @@ db.updateUserPersonalDetails = (user, data) => {
 	});
 };
 // end of user account api dp
+
+// TODO: **********user subcription db function
+db.subscribePremiumPlan = (user, details) => {
+	return new Promise((resolve, reject) => {
+		pool.query(
+			"UPDATE users SET subscriptionLevel=? WHERE userId=?",
+			[details["subscriptionLevel"], user._uid],
+			(err, results) => {
+				if (err) {
+					console.log(err);
+					reject(err);
+				}
+				resolve(results);
+			}
+		);
+	});
+};
+
+// end of user subcription db function
 
 db.uploadReport = (file, user, body) => {
 	console.log(body);
@@ -434,7 +453,7 @@ db.trainModel = (user, data) => {
 	});
 };
 
-// *************** ingredients db functions **********//
+// TODO:********* ingredients db functions **********//
 
 db.addIngredientsDetails = (user, data) => {
 	const now = moment().format();
@@ -467,7 +486,7 @@ db.getIngredientsDetails = (user) => {
 	});
 };
 
-// *************** Products db functions **********//
+// TODO:********* Products db functions **********//
 
 db.addproductsdetails = (user, data) => {
 	return new Promise((resolve, reject) => {
